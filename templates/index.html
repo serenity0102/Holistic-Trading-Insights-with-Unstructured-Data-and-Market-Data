@@ -46,21 +46,35 @@
             padding: 10px;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
         }
         .stat-label {
             font-size: 0.9em;
             color: #666;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
         .stat-value {
             font-size: 1.2em;
             font-weight: bold;
             color: #333;
+            margin-bottom: 10px;
         }
         pre {
             background: #fff;
             padding: 10px;
             border-radius: 4px;
             overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+        }
+        .news-content {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -76,6 +90,7 @@
                     <option value="NVDA">NVDA</option>
                     <option value="AMZN">AMZN</option>
                 </select>
+                <input type="text" id="search-query" placeholder="Enter search query" style="width: 250px;">
                 <button onclick="fetchData()">Get Data</button>
             </div>
             <div>
@@ -169,17 +184,33 @@
                         'Error fetching market data';
                 });
 
-            // Fetch related news
-            fetch(`/search-news?stock_code=${stockCode}`)
+            // Get search query
+            const searchQuery = document.getElementById('search-query').value;
+            
+            // Fetch related news with search query
+            fetch(`/search-news?stock_code=${stockCode}&query=${encodeURIComponent(searchQuery)}`)
                 .then(response => response.json())
                 .then(data => {
                     // Format and display news results
-                    const newsHtml = data.news.map(item => `
-                        <div class="stat-box">
-                            <div class="stat-value">${item.score.toFixed(2)}</div>
-                            <div class="stat-label">${item.content}</div>
-                        </div>
-                    `).join('');
+                    const newsHtml = data.news.map(item => {
+                        // Format the content for display
+                        let displayContent = item.content;
+                        try {
+                            // If content is JSON string, parse and format it
+                            const parsed = JSON.parse(item.content);
+                            displayContent = JSON.stringify(parsed, null, 2);
+                        } catch (e) {
+                            // If not JSON, use as is
+                            displayContent = item.content;
+                        }
+                        
+                        return `
+                            <div class="stat-box">
+                                <div class="stat-value">Relevance Score: ${item.score.toFixed(2)}</div>
+                                <div class="news-content">${displayContent}</div>
+                            </div>
+                        `;
+                    }).join('');
                     
                     document.getElementById('news-data').innerHTML = newsHtml || 'No relevant news found';
                 })
@@ -260,7 +291,7 @@
                         
                         console.log('Status check response:', data);
                         
-                        if (data.status === 'COMPLETED') {
+                        if (data.status === 'COMPLETE') {
                             alert('Knowledge base sync completed successfully');
                             console.log('Final status:', data);
                         } else if (data.status === 'FAILED') {

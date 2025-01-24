@@ -23,6 +23,7 @@ class BedrockKnowledgeBase:
         self.bedrock = boto3.client('bedrock', region_name=aws_region)
         boto3_session = boto3.session.Session()
         self.bedrock_agent = boto3_session.client('bedrock-agent', region_name=aws_region)
+        self.bedrock_agent_runtime_client = boto3.client("bedrock-agent-runtime", region_name=aws_region)
         self.kb_id = os.getenv('BEDROCK_KB_ID')
         self.ds_id = os.getenv('BEDROCK_KB_DS_ID')
         
@@ -75,7 +76,7 @@ class BedrockKnowledgeBase:
             logger.info(f"Performing semantic search for stock: {stock_code}")
             logger.info(f"Query: {query}")
             
-            response = self.bedrock_agent.retrieve(
+            response = self.bedrock_agent_runtime_client.retrieve(
                 knowledgeBaseId=self.kb_id,
                 retrievalQuery={
                     'text': f"{query} {stock_code}"
@@ -89,10 +90,21 @@ class BedrockKnowledgeBase:
             
             results = []
             for result in response['retrievalResults']:
+                # Convert content to string if it's an object
+                content = result['content']
+                if isinstance(content, dict):
+                    # If content is a dictionary, format it nicely
+                    content = json.dumps(content, indent=2)
+                elif not isinstance(content, str):
+                    # If content is any other type, convert to string
+                    content = str(content)
+                
                 results.append({
-                    'content': result['content'],
+                    'content': content,
                     'score': result['score']
                 })
+                
+            logger.info(f"Processed {len(results)} search results")
             
             logger.info(f"Found {len(results)} results")
             return results

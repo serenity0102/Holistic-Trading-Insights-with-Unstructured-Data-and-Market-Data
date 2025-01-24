@@ -110,9 +110,13 @@ def search_news():
     if not stock_code:
         return jsonify({'error': 'Stock code is required'}), 400
 
-    try:
-        # Perform semantic search in knowledge base
+    query = request.args.get('query')
+    if not query:
         query = f"Find recent news and updates about {stock_code}"
+    
+    try:
+        # Perform semantic search in knowledge base with custom query
+        logger.info(f"Performing semantic search for stock {stock_code} with query: {query}")
         results = kb.semantic_search(query, stock_code)
         return jsonify({'news': results})
     except Exception as e:
