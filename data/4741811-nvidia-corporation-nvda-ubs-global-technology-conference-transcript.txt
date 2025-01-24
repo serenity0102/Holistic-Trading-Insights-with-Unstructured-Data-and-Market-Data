@@ -1,0 +1,233 @@
+NVIDIA Corporation (NASDAQ:NVDA)
+UBS Global Technology Conference Call
+December 3, 2024 9:35 AM ET
+
+Company Participants
+
+Colette Kress - Executive Vice President and Chief Financial Officer
+
+Conference Call Participants
+
+Tim Arcuri - UBS
+
+Tim Arcuri
+
+Good morning. Thank you. I am Tim Arcuri. I am very pleased to have NVIDIA. Pleased to have Colette with us. Thank you Colette for the time. And we're just going to kick it off. And Colette, it's been an incredible past couple of years. You're still growing very fast. I'm wondering if you can talk about some of the use cases, how they've evolved? We're having enterprises adopt AI widely. How has the demand picture sort of evolved in terms of Cloud, Consumer, Internet and Enterprise and maybe if you can talk about some of the use cases that you see that are very exciting, as well?
+
+Colette Kress
+
+Okay. Let me first start with a statement that I must read. As a reminder, this presentation contains forward-looking statements and investors are advised to read our reports filed with the SEC for information related to risk, uncertainties in facing our business.
+
+Okay, really great to see everybody here and thank you so much for hosting us. Let me kind of talk about what we have seen is certainly just been a fast journey even over the last several quarters. But keep in mind, we are 30 years in terms of the business that we're doing, but we certainly are in a very important phase.
+
+When we think about the phase that we are in and what we are seeing, we do believe that the computing platform that many of us have been using and seeing for more than 20 to 30 years is here to transform for the next decades going forward. So what that means is we are seeing those concentrating on their existing computing platform, which may include general purpose computing and a shift to accelerated computing.
+
+But a new piece was also added outside of just focusing on accelerated computing and that was the focus on AI and the focus on Generative AI. The new use cases that we have seen of course over the last several quarters is the size of models. If you recall, before the very onset of Generative AI, we talked about large language models.
+
+And the importance that they were there for much of the work in terms of the consumer Internet companies, the recommender engines and model sizes continue to get larger. Right now the work in terms of foundational models are very key in terms of the work that you see happening. But you also see the scaling of those models as they focus on many different types of foundational models and multi-modal types of models being built.
+
+The next phase of this transition is also focusing on that inferencing phase. And you'll see more and more work in terms of the types of systems that we are bringing do support that inferencing model after we have developed the large language models, all of our different types of customers are unique.
+
+We are working from everything from the start-ups to the research, the CSPs are some of the most important that are standing up compute so fast for the end enterprises that need to use that. We are working with consumer Internet companies, but more importantly, we are working globally in terms of supporting this initiative.
+
+Nothing that we've seen before in terms of the speed and the understanding of what's going to be in front of us. So, those are some of the things that we're seeing today.
+
+Tim Arcuri
+
+And I think, we all worry that eventually we're going to build too much capacity. And I think your view is that we're nowhere close to that. So, maybe can you just speak to sort of how much visibility you have and maybe just the demand picture relative to what you're able to supply?
+
+Colette Kress
+
+Yeah, when we look at the quarters in the past and our scaling, our number one goal in terms of scaling is working with both all of our partners, downstreams with our customers, but also in terms of bringing in supply. No, we are not near any point in time, now where we are seeing any type of a slowdown. What we are seeing right now is demand continues to be fueled a lot due to the size of models, the complexity of inferencing and we are still getting ready for our next architecture, Blackwell.
+
+And right now what we see in terms of our Blackwell, which will be here this quarter is also probably a supply constraint that is going to take us well into our next fiscal year for several quarters from now. So, no, we don't see a slowdown. We continue to see tremendous demand and interest, particularly for our new architecture that's coming out.
+
+Tim Arcuri
+
+Well, just on that point, so you’ve put up a great quarter. You’re shipping Blackwell in January and you are actually shipping more Blackwell than you thought you would three months ago. And at the same time, we do hear a lot of chop in the supply chain. You hear a lot of articles written and things like that. Can you just speak to how Blackwell is different than prior product cycles?
+
+Colette Kress
+
+Yes, our Blackwell architecture is unique. What we are doing here is building at a datacenter scale. Don't get us wrong, we have been working in terms of platforms for many years, not just at the chip level and something that is end-to-end to scale. But when you look at our Hopper architecture, our Hopper architecture is for that rack scale and the work that we have done.
+
+Essentially what you're seeing with our Blackwell architecture, some of them we will completely build inside of our supply chain get it ready, get it stood up, take it down, dip it and they will stand it up together. And what we are doing is a greater portion of choices for the customers depending on where they are in their lifecycle.
+
+And what we mean by that is datacenters are complex and the types of things that they do to make them the most efficient, each of them are at different stages. So you have the opportunity to choose between a lot of different options of what we're doing. That means we can do liquid cool. We can do continued in terms of air-cooled. You can incorporate an ARM CPU, but also x86 if you want.
+
+There's many different networking options that we have, whether that's InfiniBand and Ethernet and many different other switch choices in there. That decision is with the customer and many different configurations. When we think about where we are right now in Blackwell for this quarter, all is done in terms of the chip.
+
+The chip is fine. The chip and the work that we have done has moved quite well. Right now, we are standing up configurations for so many of our different customers. You will all see pictures on the Internet. Pictures with happy faces as they get excited for standing up the first one and getting ready to put the whole datacenter and all of the different racks together in terms of that. That's where we stand today.
+
+Tim Arcuri
+
+Great. And there's just a lot going on with the product cadence and you have B100, you have B200, you have the racks with [TB], then you have Blackwell Ultra coming about six months later. So, is there a risk that customers wait, because you have products coming so quickly?
+
+Colette Kress
+
+No, when you think about what is necessary in designing the datacenter, it does takes planning. And what we have seen in, at least, the last five to ten years is more work with all of our different customers as they plan every six months they're planning. What is here? What am I going to build? And they need to be ready for compute at that time that they are working in terms of in projects.
+
+So given that there are things that are still short in supply, we are still serving with an amazing configuration Hopper 200 for our customers. That is an opportunity for them to begin some of the work that they are doing with an HGX system and they haven’t yet even touched a GPU yet, just because the demand for that has been so strong over. The folks have worked with us helping understand how they build out the datacenters. The datacenters often have already been procured. They just know they need to fit what will be inside of those. That's why you see us with two architectures.
+
+Additionally, as you know, we will do Vera Rubin going forward that again will be a discussion that we will have with customers that says here is a potential offerings. How can we help you think through what you may need going forward?
+
+Tim Arcuri
+
+But I guess maybe it's a bit similar to the H100 and H200 where customers didn’t wait and that went all great. So I guess there is evidence out there where customers did not wait when you had a product come out quickly after those Vera products?
+
+Colette Kress
+
+The customers are eager. Wait is a strong word, I would say, they call every day asking in terms of when they can see the compute and we are working feverishly for that new supply. But what the importance is, is remember, this is a journey that's probably going to take place for two decades. Everybody will get onboard. Our architectures allows an end-to-end scaling approach for them to do whatever they need to in the world of accelerated computing and Ai. And we're a very strong candidate to help them, not only with that infrastructure, but also with the software.
+
+Tim Arcuri
+
+Thank you. So I wanted to ask you the cash question. We actually talked about this last night. You've generated about $56 billion in the cash flow over the past four quarters. I heard you are generating about $120 billion in calendar ’25. And even if I assume that you buy back about $50 billion per year, you're going to end up with a $100 billion in cash at the end of next year and potentially $200 billion in cash at the end of 2026. These are obviously massive, massive numbers even Apple, which got to $100 billion in cash ended up working that down. How do you think about what you're going to do with the cash?
+
+Colette Kress
+
+Our work in terms of our cash and our use of cash is some of the most important things that any company has to look at. We do spend with a great group of people, helping things through our strategy and our needs. Your first thing that you're going to consider is what is that cash that we need for innovation and all sorts of support just our work in the scaling that we are doing. That's going to be the first pieces. But we are continuing and know that innovation and everything that we are doing in R&D is going to be an important part of that.
+
+Now we can do that from both learnings from companies. We can also think about that in terms of our work of bringing on great teams in some M&A form that they come onboard. That's a great opportunity for us to do and we will continue to work also in that area. Then it leads to thinking about new types of business models that we may want to add and focus on in new areas of AI.
+
+And the support that we can do not only for, let's just say, building out software, but building out full systems for others and we'll be investing in that. After we determine those types of investments, our work is, in terms of returning to shareholders, it always will be and our focus on that is a combination of share repurchases and dividends and you'll continue to see this, watch this very carefully.
+
+We're not a fan of excess cash. So we are going to watch this carefully and you'll continue for the next quarters.
+
+Tim Arcuri
+
+Great. Thank you. As we talk about gross margin for a minute, you did say that gross margin comes down in the fiscal Q1 of next year as Blackwell ramps, you said it comes on to low 70s, which you then clarified as 71 through 72.5 on the call. But it comes back up after that and it comes back up to the mid-70s as you get to the end of the year.
+
+Can you talk about sort of how confident you are in that? And with Rubin coming after that, there are some people that think, “Well, gross margin will be under pressure once again, once Rubin begins to ramp.” So, can you talk about how confident you are that you can maintain mid-70s over time?
+
+Colette Kress
+
+Okay. So Blackwell is unique as we've discussed in terms of its different configurations and we're standing up quite many different ones that you are going to see go to market, even in this quarter. We're not just shipping one version. There's going to be several. So therefore the volume at this time is quite small.
+
+As we continue to scale this throughout the year, we will be able to improve the gross margins once we get into the scaling of all of our different system configurations that we have. When we think about going forward though and the Vera Rubin, little far out there to go through, we still have to run through an analysis in terms of the TCO and things that we would do.
+
+So we'll put that off in terms of a little later in terms of what we see. But I'd say, we're in a unique position right now just with Blackwell and what we're seeing.
+
+Tim Arcuri
+
+And how have you been able to move gross margin up so much? Because when Hopper launched, I remember during the early phases of Hopper gross margin was in the mid-60s, and now you're going to end up in the mid-70s. So, how have you moved gross margin up so much?
+
+Colette Kress
+
+Okay. There are many different things when we are determining the value that we have provided to customers. It's not just about performance. It's not just about performance of the chips. It is about the end-to-end solution and what the customer is able to do to find the lowest TCO for them to determine. That helps determine how we go to market and use a certain price of that piece.
+
+That TCO value is essentially looking at the full end-to-end. How would you complete the software? How would you complete your full data-center architecture? Would you need other teams? It's more than just looking at the different components. And it is not a situation where it’s the components and the cost plus model.
+
+So, because of that and because of the strong performance, the strong efficiency, and the best TCO that enables us a full TCO incorporating all of the software that we provide both inside of the systems and support them throughout their lifetime.
+
+Tim Arcuri
+
+Got it. Can we talk about your Networking business? I get a lot of questions, it was down last quarter, it was expected to be up. And some people think that “Well, as you transition from InfiniBand to Ethernet that your position in networking is a little less strong.” So can you just talk about the Networking business and should we expect it to grow alongside of the compute business?
+
+Colette Kress
+
+Our Networking business is one of the most important additions that we added when we went to a datacenter scale. The ability to think through, not just the time where the data, the work is being done at a data processing or the use of the compute and/or the GPU is essential to think through the Networking’s position inside of that datacenter.
+
+So we have two different offerings. We have InfiniBand and InfiniBand had tremendous success with many of the largest supercomputers in the world for decades. And that has been very important in terms of the size of data, the size of speed of data going through. It had different views in terms of how to deal with the traffic that will be there.
+
+Ethernet, a great configuration that is the standard for many of the enterprises. But Ethernet was not built for AI. Ethernet was just built for the networking inside of datacenters. So we are taking some of the best of the breeds of what you see in terms of inter InfiniBand and creating Ethernet for AI. That allows customers now, both the choice between those. We can be full end-to-end systems with InfiniBand and now you have your choice in terms of what we do with Ethernet.
+
+Both of these things are a growth option for us. In terms of this last quarter, we had some timing issues. But now, what you will see in terms of the continuation of our Networking will definitely grow. With our designs in terms of Networking with our compute, we have some of the strongest clusters that are being built and also using our Networking. That connection that we have done has been a very important part of the work that we've done since the acquisition of Mellanox. Folks do represent and understand our use of networking and how that can help their overall system as a whole.
+
+Tim Arcuri
+
+Great. Can we talk about scaling of these large language models? There's been some articles written that Google and OpenAI are having a hard time to get better results out of these larger models. But on the other hand, you had Meta on their earnings call and you had others like Anthropic saying that the scaling is of live and well.
+
+So can you just speak to that? I know that there's some nuances in post-training and of course, there's the test time difference with the – some of these new models from OpenAI. Is the scaling question something that investors should be thinking about?
+
+Colette Kress
+
+When we look at what we are seeing in the size of clusters that are being built and the work that many of our customers are looking to do, the scaling laws that we see particularly in terms of training, they're still here. I think you will see more and more larger models and complex models in this next-generation of Blackwell. What that means is, there is this phase of post-training that's coming back with reinforcement learning that are truly looking for the human piece of it and also using in terms of synthetic data to fine-tune that models.
+
+Another way of saying that is training’s never done, and there's a lot of work that continues. But there's also been new skilling laws that is focused on the inferencing phase. If you recall, we are the largest inferencing provider that exist today. We do the most inferencing versus any other different types of configuration, why? it's very hard.
+
+And what we are seeing from a scaling, is an important part from the onset of Generative AI to now, more are looking in terms of the focus in terms of reasoning for deep thinking and taking the time to do that. That is still going to now require additional amount of compute and a compute that is able to do at the least amount of latency for that time that you will spend in terms of the reasoning factor of it.
+
+So we still see those scaling laws still being important and more and more new laws will be probably formed over the next decades.
+
+Tim Arcuri
+
+You talk about a new and emerging piece of the demand picture, which is more in government-backed projects, Sovereign as we call them. You said that you're going to do double-digit billion dollars this year in that - for those projects as a whole. Can you talk about some of the examples of where that demand is coming from? And sort of how to think about how big it could be? I kind of think of it as well maybe some of these larger projects in the Middle East could eventually be as large as a US BSP.
+
+So this could be a very large piece of demand and I am wondering how you sort of think about that you could get?
+
+Colette Kress
+
+So Sovereign AI has been a very interesting part of what we've seen in terms of Generative AI. Very simply said, what they saw here that we had in the US, every country, every country that has a duty to see when I want that too, okay? And they want a model, a foundational model in their own language, in their own culture to support their nation. As they see the importance of what AI will be in the next decades going forward.
+
+So, the amount of different countries that we are working with or even working in certain regions as you focused, is a very large part of our work that we are doing, spending around globally of AI. It is not just a West Coast of the US. It is really taking part around the world. Not all of it and even only parts of it are a government funding. Many of them are looking at very large companies that will start a new type of regional CSPs that they're able to support accelerated computing and may have a set of tenets. And we’ll likely have a foundational model with them in order to support the enterprises.
+
+You've seen our talk in terms of what is happening in Japan. There is an area where SoftBank is very interested in building a very, very sizable model. You see, in terms of India, and many of the CSPs there working in terms of what they will incorporate as well.
+
+That moves all the way to the Europe. It moves to the Nordics and it’s also very important part in the Asia-pacific area. So this will continue some parts of it that you want to think about is the next-generation of what we saw in terms of supercomputing in each of those countries. You will see from GDP what they need to do for AI and the Sovereign AI.
+
+Tim Arcuri
+
+Great. Can you talk about your Software business for just a minute or so? You had said that it's going to be crossing over the $2 billion a year runrate exiting this year. If I sort of do some back of the envelope of math and I try to figure out how many of your GPUs are you directly monetizing on for your modification of those.
+
+I get something like 10% attach rate, where you're roughly directly licensing 10% of your So can you talk about sort of how you think about the attach rate, and how and how successful you are and directly licensing software for your GPUs?
+
+Colette Kress
+
+Yeah. Our software platform is so essential to many of our enterprises and many of our regional CSPs, our future AI factories, our AI foundations work that we're doing. Why is that the case? What you have is a situation where that first steps of understanding how to move and get started on AI, we have thousands of different applications, as well as CUDA libraries and CUDA work that we have done for each industry, as well as each major workload within those industries.
+
+Your enterprises have to have that piece, not only for the work that they need to do to do on their own, but their work that they need to do to support the infrastructure in that datacenter. So, we are building that for them and in many cases, your enterprise customers will have a very strong attachment to that software as they will need that for the work that they're doing.
+
+Those that have very, very large, software teams and as I have been self-building for several decades is different. But as you can imagine the world, can't go back to building all of those software engineers. And so we have spent a very quality amount of time helping a lot of enterprises.
+
+It's working with the enterprises from the onset of them choosing what type of compute they're doing to the delivery to helping them with their models and setting up all of their different apps and all of the overall inferencing where there are the entire way. So, it's more than just the actual software in there. That software also comes with true support and services from the company.
+
+Tim Arcuri
+
+So we looked just the enterprise market, your attach rate could be actually quite a bit higher than that?
+
+Colette Kress
+
+Absolutely. That’s correct.
+
+Tim Arcuri
+
+Got it. Great. We all talk about datacentre, but inference at the Edge is going to become a much bigger theme. So can you talk about your position at the Edge? You have a large installed base in PC. That should play pretty well for you and you have Omniverse. Robotics is a huge theme. So can you talk about some of your offerings and how we should think of you as a player at the Edge?
+
+Colette Kress
+
+Yes, Edge Computing, Edge AI, very similar will likely go hand-in-hand and be there. What that means is, you will have factories. You will see folks in their datacenter collecting data and providing that data to go into many of the overall Edge appliances, Edge appliances that you may think, the cars. The cars that are autonomous-driven.
+
+The next phase will likely be in terms of the robotics. A very, very big industry where the data and the learning is happening back in the datacenter and inside of those different devices includes our capabilities, to support them. It's an important industry. We do know the - I would say the datacenter piece of that is a very large market and very important for what we will see going forward.
+
+That incorporates even a new set of software that we're doing. As, you know, we're doing the software for autonomous vehicles that will come to market later in this next calendar year. Additionally, when you think about the work that we can do inside of the robotics and also from that software and the work that we can do with many of the factories with Omniverse and the overall layout of how that will work.
+
+So, these are very strong areas of focus even outside of just a standard datacentre. But yes, Edge Computing will be an important piece too.
+
+Tim Arcuri
+
+Great. Can we talk just for a minute about inference versus training? You have been saying that inference is about 40% of your revenue. Can you talk about how you see that evolving?
+
+Colette Kress
+
+It is about 40%, when we had communicated that we start thinking through what we are seeing the use cases for what they're doing. We see a lot of time spent in terms of the inferencing. And this is even before you were seeing a lot of the Generative AI applications that are still in the worst to be put out there.
+
+So, with the recommend - recommender engines, that is a very significant part of the inferencing today. So our growth of that 40% will likely be seen as we move forward. But as I discussed earlier, we are still the largest in terms of inferencing. And when we think about the Blackwell architecture, particularly the GB200, NVL that is an important configuration that is 30X Improvement in terms of inferencing performance from our current generation.
+
+That is such an important piece for many of the customers. They will likely use at the very onset building, what they need for their foundational model. But that important part of inferencing going forward with Blackwell is - has been very well received by many of our customers.
+
+Tim Arcuri
+
+Great. And then, you talked about some constraints on Blackwell, and it sounds like they're going to go away maybe mid-‘25 that they begin to ease. Can you talk about what some of those are? And maybe is that right to assume that they do sort of begin to go away in the middle of ‘25
+
+Colette Kress
+
+When we think through the building of Blackwell and the designing and working with our customers on the configuration, the demand Cane's Fast and Furious in terms of what demand is exceptional. And we are working with a tremendous set of partners. We talk with our suppliers each and every day to help them. So right now, yes, we need to scale to build enough Blackwell for what we see in the demand in front of us.
+
+And we are probably going to be supply constrained pretty much through the first parts of the new fiscal year. When you say in terms of where there is constraint? It depends in terms of the configurations, but some of the challenges that you have are working again in terms of the co-op space. So the work that you need to do in terms of the different configurations and all of the work that we do in terms of the Networking those switching to get that right. Depending on those configurations that can be supply constrained. But we will have right out of the gate in terms of this quarter, we are on track to ship Blackwell. Blackwell is doing just fine and we're very excited to bring multiple configurations to our customers this quarter.
+
+Tim Arcuri
+
+Well, I think it's going to be an amazing year next year for sure. So, anyway, thank you, Colette. Believe you are appreciated.
+
+Colette Kress
+
+Yes. Okay. Bye.

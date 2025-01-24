@@ -73,7 +73,8 @@
             <div>
                 <select id="stock-code">
                     <option value="">Select a stock</option>
-                    <option value="">HSBC</option>
+                    <option value="NVDA">NVDA</option>
+                    <option value="AMZN">AMZN</option>
                 </select>
                 <button onclick="fetchData()">Get Data</button>
             </div>
@@ -212,8 +213,23 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert(`File uploaded successfully\nS3 URI: ${data.s3_uri}\nIngestion Job ID: ${data.ingestion_job_id}\nStatus: ${data.sync_status}`);
-                // Start polling ingestion status
+                console.log('Upload response:', data);
+                
+                if (!data.ingestion_job_id) {
+                    alert('Error: No ingestion job ID received');
+                    console.error('Upload response missing ingestion_job_id:', data);
+                    return;
+                }
+                
+                const message = [
+                    'File uploaded successfully',
+                    `S3 URI: ${data.s3_uri || 'N/A'}`,
+                    `Ingestion Job ID: ${data.ingestion_job_id}`,
+                    `Initial Status: ${data.sync_status || 'PENDING'}`
+                ].join('\n');
+                
+                alert(message);
+                console.log('Starting ingestion status polling for job:', data.ingestion_job_id);
                 pollIngestionStatus(data.ingestion_job_id);
                 document.getElementById('news-file').value = '';
                 document.getElementById('file-name').textContent = 'No file chosen';
@@ -225,19 +241,42 @@
         }
 
         function pollIngestionStatus(jobId) {
+            if (!jobId || jobId == 'undefined') {
+                console.error('Invalid job ID for status polling:', jobId);
+                return;
+            }
+            
+            console.log('Starting status polling for job:', jobId);
+            let pollCount = 0;
+            const maxPolls = 60; // Maximum number of status checks (5 minutes at 5-second intervals)
+            
             const checkStatus = () => {
+                pollCount++;
+                console.log(`Polling attempt ${pollCount} for job ${jobId}`);
                 fetch(`/ingestion-status?job_id=${jobId}`)
                     .then(response => response.json())
                     .then(data => {
                         console.log('Ingestion status:', data);
                         
+                        console.log('Status check response:', data);
+                        
                         if (data.status === 'COMPLETED') {
                             alert('Knowledge base sync completed successfully');
+                            console.log('Final status:', data);
                         } else if (data.status === 'FAILED') {
-                            alert(`Knowledge base sync failed: ${data.error_message}`);
+                            alert(`Knowledge base sync failed: ${data.error_message || 'Unknown error'}`);
+                            console.error('Job failed:', data);
                         } else if (['IN_PROGRESS', 'PENDING'].includes(data.status)) {
+                            if (pollCount >= maxPolls) {
+                                alert('Status polling timed out after 5 minutes');
+                                console.log('Polling timed out. Last status:', data);
+                                return;
+                            }
                             // Continue polling if still in progress
                             setTimeout(checkStatus, 5000); // Check every 5 seconds
+                        } else {
+                            alert(`Unexpected status: ${data.status}`);
+                            console.warn('Unexpected status:', data);
                         }
                     })
                     .catch(error => {

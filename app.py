@@ -1,13 +1,26 @@
 from flask import Flask, request, render_template, jsonify
 import os
+import logging
+import sys
 from dotenv import load_dotenv
 from bedrock_utils import BedrockKnowledgeBase
 from finspace_utils import FinSpaceClient
 from s3_utils import S3Client
 
+# Configure logging to output to console
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 app = Flask(__name__)
+app.logger.setLevel(logging.DEBUG)
 
 # Initialize clients
 kb = BedrockKnowledgeBase()
@@ -32,12 +45,26 @@ def upload_file():
         return jsonify({'error': 'Stock code is required'}), 400
 
     try:
+        logger.info(f"Starting file upload for stock code: {stock_code}")
+        
         # Upload to S3 first
         s3_result = s3_client.upload_file(file, stock_code)
+        if not s3_result or 's3_uri' not in s3_result:
+            logger.error("Failed to upload file to S3")
+            return jsonify({'error': 'Failed to upload file to S3'}), 500
+        
+        logger.info(f"File uploaded to S3: {s3_result['s3_uri']}")
         
         # Trigger Bedrock knowledge base sync
-        sync_result = kb.trigger_sync(s3_result['s3_uri'])
+        sync_result = kb.trigger_sync()
+        if not sync_result:
+            logger.error("Failed to trigger knowledge base sync")
+            return jsonify({'error': 'Failed to trigger knowledge base sync'}), 500
         
+        logger.info(f"Sync triggered successfully: {sync_result}")
+        logger.info(f"Ingestion job ID: {sync_result['ingestion_job_id']}")
+        logger.info(f"Initial status: {sync_result['status']}")
+
         return jsonify({
             'message': 'File uploaded successfully',
             'ingestion_job_id': sync_result['ingestion_job_id'],
@@ -45,6 +72,7 @@ def upload_file():
             's3_uri': s3_result['s3_uri']
         })
     except Exception as e:
+        logger.error(f"Error in upload process: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/ingestion-status', methods=['GET'])
@@ -54,9 +82,12 @@ def get_ingestion_status():
         return jsonify({'error': 'Ingestion job ID is required'}), 400
 
     try:
+        logger.info(f"Checking status for job: {job_id}")
         status = kb.get_ingestion_job_status(job_id)
+        logger.info(f"Status result: {status}")
         return jsonify(status)
     except Exception as e:
+        logger.error(f"Error checking ingestion status: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/market-data', methods=['GET'])
@@ -70,6 +101,7 @@ def get_market_data():
         market_data = finspace.get_market_data(stock_code)
         return jsonify(market_data)
     except Exception as e:
+        logger.error(f"Error fetching market data: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/search-news', methods=['GET'])
@@ -84,6 +116,7 @@ def search_news():
         results = kb.semantic_search(query, stock_code)
         return jsonify({'news': results})
     except Exception as e:
+        logger.error(f"Error searching news: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/symbols', methods=['GET'])
@@ -92,7 +125,9 @@ def get_symbols():
         symbols = finspace.get_available_symbols()
         return jsonify({'symbols': symbols})
     except Exception as e:
+        logger.error(f"Error fetching symbols: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    logger.info("Starting Market Data Viewer application")
     app.run(debug=True)
