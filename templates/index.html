@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .input-section {
+            grid-column: 1 / -1;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .data-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        input, button, select {
+            margin: 5px;
+            padding: 8px;
+        }
+        #file-name {
+            margin-left: 10px;
+            color: #666;
+        }
+        .market-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-box {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Market Data Viewer</h1>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Input</h2>
+            <div>
+                <select id="stock-code">
+                    <option value="">Select a stock</option>
+                </select>
+                <button onclick="fetchData()">Get Data</button>
+            </div>
+            <div>
+                <input type="file" id="news-file" style="display: none" onchange="updateFileName()">
+                <button onclick="document.getElementById('news-file').click()">Choose File</button>
+                <span id="file-name">No file chosen</span>
+                <button onclick="uploadFile()">Upload</button>
+            </div>
+        </div>
+
+        <div class="data-section">
+            <h2>Market Data</h2>
+            <div class="market-stats" id="market-stats"></div>
+            <div id="market-data">No data available</div>
+        </div>
+
+        <div class="data-section">
+            <h2>Related News</h2>
+            <div id="news-data">No news available</div>
+        </div>
+    </div>
+
+    <script>
+        // Load available stock symbols when page loads
+        window.onload = function() {
+            fetch('/symbols')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('stock-code');
+                    data.symbols.forEach(symbol => {
+                        const option = document.createElement('option');
+                        option.value = symbol;
+                        option.textContent = symbol;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading symbols:', error);
+                });
+        };
+
+        function updateFileName() {
+            const fileInput = document.getElementById('news-file');
+            const fileNameSpan = document.getElementById('file-name');
+            fileNameSpan.textContent = fileInput.files[0] ? fileInput.files[0].name : 'No file chosen';
+        }
+
+        function fetchData() {
+            const stockCode = document.getElementById('stock-code').value;
+            if (!stockCode) {
+                alert('Please enter a stock code');
+                return;
+            }
+
+            // Fetch market data
+            fetch(`/market-data?stock_code=${stockCode}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update market stats
+                    const statsDiv = document.getElementById('market-stats');
+                    statsDiv.innerHTML = `
+                        <div class="stat-box">
+                            <div class="stat-label">Latest Price</div>
+                            <div class="stat-value">${data.latest_price || 'N/A'}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Daily Change</div>
+                            <div class="stat-value">${data.daily_change || 'N/A'}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Volume</div>
+                            <div class="stat-value">${data.volume || 'N/A'}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">High</div>
+                            <div class="stat-value">${data.high || 'N/A'}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Low</div>
+                            <div class="stat-value">${data.low || 'N/A'}</div>
+                        </div>
+                    `;
+                    
+                    // Display time series data
+                    document.getElementById('market-data').innerHTML = 
+                        '<pre>' + JSON.stringify(data.time_series || [], null, 2) + '</pre>';
+                })
+                .catch(error => {
+                    console.error('Error fetching market data:', error);
+                    document.getElementById('market-data').textContent = 
+                        'Error fetching market data';
+                });
+
+            // Fetch related news
+            fetch(`/search-news?stock_code=${stockCode}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Format and display news results
+                    const newsHtml = data.news.map(item => `
+                        <div class="stat-box">
+                            <div class="stat-value">${item.score.toFixed(2)}</div>
+                            <div class="stat-label">${item.content}</div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('news-data').innerHTML = newsHtml || 'No relevant news found';
+                })
+                .catch(error => {
+                    console.error('Error fetching news:', error);
+                    document.getElementById('news-data').textContent = 
+                        'Error fetching news';
+                });
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById('news-file');
+            if (!fileInput.files[0]) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || 'File uploaded successfully');
+                document.getElementById('news-file').value = '';
+                document.getElementById('file-name').textContent = 'No file chosen';
+            })
+            .catch(error => {
+                console.error('Error uploading file:', error);
+                alert('Error uploading file');
+            });
+        }
+    </script>
+</body>
+</html>
