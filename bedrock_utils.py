@@ -25,26 +25,25 @@ class BedrockKnowledgeBase:
             print(f"Error creating knowledge base: {str(e)}")
             raise
 
-    def upload_document(self, file_content, file_name):
+    def trigger_sync(self, s3_uri):
+        """
+        Trigger a sync operation for the knowledge base to process new files in S3
+        """
         try:
-            # Create data source if not exists
-            data_source_id = self._get_or_create_data_source()
-            
-            # Upload document to knowledge base
-            response = self.bedrock_agent.create_data_source(
+            response = self.bedrock_agent.start_ingestion_job(
                 knowledgeBaseId=self.kb_id,
-                name=file_name,
-                description=f'News document: {file_name}',
-                dataSourceConfiguration={
-                    'type': 'VECTOR_TEXT',
-                    'vectorTextConfiguration': {
-                        'text': file_content
+                dataSource={
+                    's3Configuration': {
+                        's3Uri': s3_uri
                     }
                 }
             )
-            return response['dataSource']['dataSourceId']
+            return {
+                'ingestion_job_id': response['ingestionJob']['ingestionJobId'],
+                'status': response['ingestionJob']['status']
+            }
         except Exception as e:
-            print(f"Error uploading document: {str(e)}")
+            print(f"Error triggering knowledge base sync: {str(e)}")
             raise
 
     def semantic_search(self, query, stock_code):
@@ -73,24 +72,20 @@ class BedrockKnowledgeBase:
             print(f"Error performing semantic search: {str(e)}")
             raise
 
-    def _get_or_create_data_source(self):
+    def get_ingestion_job_status(self, ingestion_job_id):
+        """
+        Get the status of a specific ingestion job
+        """
         try:
-            # List existing data sources
-            response = self.bedrock_agent.list_data_sources(
-                knowledgeBaseId=self.kb_id
-            )
-            
-            if response['dataSourceSummaries']:
-                return response['dataSourceSummaries'][0]['dataSourceId']
-            
-            # Create new data source if none exists
-            response = self.bedrock_agent.create_data_source(
+            response = self.bedrock_agent.get_ingestion_job(
                 knowledgeBaseId=self.kb_id,
-                name='StockNewsDataSource',
-                description='Data source for stock market news'
+                ingestionJobId=ingestion_job_id
             )
-            
-            return response['dataSource']['dataSourceId']
+            return {
+                'status': response['ingestionJob']['status'],
+                'statistics': response['ingestionJob'].get('statistics', {}),
+                'error_message': response['ingestionJob'].get('errorMessage', '')
+            }
         except Exception as e:
-            print(f"Error with data source: {str(e)}")
+            print(f"Error getting ingestion job status: {str(e)}")
             raise

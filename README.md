@@ -11,10 +11,11 @@ A Python Flask application that combines market data from Amazon FinSpace KDB+ w
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.11
 - AWS Account with access to:
   - Amazon Bedrock
   - Amazon FinSpace with KDB+
+  - Amazon S3
 - AWS credentials configured with appropriate permissions
 
 ## Installation
@@ -37,6 +38,7 @@ cp .env.example .env
 4. Configure your `.env` file with the following:
 
 - AWS credentials and region
+- S3 bucket name for storing uploaded files
 - Bedrock knowledge base ID and role ARN
 - FinSpace environment ID, database name, and KX cluster name
 
@@ -69,12 +71,14 @@ http://localhost:5000
 ## Usage
 
 1. **View Market Data**:
-   - Select a stock symbol from the dropdown
+   - Select a stock symbol from the dropdown (automatically populated from FinSpace)
    - Click "Get Data" to view market statistics and time series data
 
 2. **Upload News**:
+   - Select a stock symbol from the dropdown
    - Click "Choose File" to select a news article or document
-   - Click "Upload" to add it to the Bedrock knowledge base
+   - Click "Upload" to save to S3 and add to the Bedrock knowledge base
+   - The file will be stored in S3 using the pattern: `stock_code/YYYY/MM/DD/HHMMSS_filename`
 
 3. **Search News**:
    - When viewing market data, related news articles will automatically be retrieved
@@ -85,6 +89,7 @@ http://localhost:5000
 - `app.py`: Main Flask application
 - `bedrock_utils.py`: Amazon Bedrock integration for knowledge base operations
 - `finspace_utils.py`: Amazon FinSpace KDB+ integration for market data
+- `s3_utils.py`: Amazon S3 integration for file storage
 - `templates/`: HTML templates
   - `index.html`: Main web interface
 

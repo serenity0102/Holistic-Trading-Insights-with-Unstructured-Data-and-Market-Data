@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from bedrock_utils import BedrockKnowledgeBase
 from finspace_utils import FinSpaceClient
+from s3_utils import S3Client
 
 load_dotenv()
 
@@ -11,6 +12,7 @@ app = Flask(__name__)
 # Initialize clients
 kb = BedrockKnowledgeBase()
 finspace = FinSpaceClient()
+s3_client = S3Client()
 
 @app.route('/')
 def index():
@@ -22,19 +24,38 @@ def upload_file():
         return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
+    stock_code = request.form.get('stock_code')
+    
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
+    if not stock_code:
+        return jsonify({'error': 'Stock code is required'}), 400
 
     try:
-        # Read file content
-        file_content = file.read().decode('utf-8')
+        # Upload to S3 first
+        s3_result = s3_client.upload_file(file, stock_code)
         
-        # Upload to Bedrock knowledge base
-        data_source_id = kb.upload_document(file_content, file.filename)
+        # Trigger Bedrock knowledge base sync
+        sync_result = kb.trigger_sync(s3_result['s3_uri'])
+        
         return jsonify({
             'message': 'File uploaded successfully',
-            'data_source_id': data_source_id
+            'ingestion_job_id': sync_result['ingestion_job_id'],
+            'sync_status': sync_result['status'],
+            's3_uri': s3_result['s3_uri']
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ingestion-status', methods=['GET'])
+def get_ingestion_status():
+    job_id = request.args.get('job_id')
+    if not job_id:
+        return jsonify({'error': 'Ingestion job ID is required'}), 400
+
+    try:
+        status = kb.get_ingestion_job_status(job_id)
+        return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

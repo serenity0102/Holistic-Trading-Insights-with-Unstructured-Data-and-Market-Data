@@ -73,6 +73,7 @@
             <div>
                 <select id="stock-code">
                     <option value="">Select a stock</option>
+                    <option value="">HSBC</option>
                 </select>
                 <button onclick="fetchData()">Get Data</button>
             </div>
@@ -195,8 +196,15 @@
                 return;
             }
 
+            const stockCode = document.getElementById('stock-code').value;
+            if (!stockCode) {
+                alert('Please select a stock code first');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            formData.append('stock_code', stockCode);
 
             fetch('/upload', {
                 method: 'POST',
@@ -204,7 +212,9 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message || 'File uploaded successfully');
+                alert(`File uploaded successfully\nS3 URI: ${data.s3_uri}\nIngestion Job ID: ${data.ingestion_job_id}\nStatus: ${data.sync_status}`);
+                // Start polling ingestion status
+                pollIngestionStatus(data.ingestion_job_id);
                 document.getElementById('news-file').value = '';
                 document.getElementById('file-name').textContent = 'No file chosen';
             })
@@ -212,6 +222,31 @@
                 console.error('Error uploading file:', error);
                 alert('Error uploading file');
             });
+        }
+
+        function pollIngestionStatus(jobId) {
+            const checkStatus = () => {
+                fetch(`/ingestion-status?job_id=${jobId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Ingestion status:', data);
+                        
+                        if (data.status === 'COMPLETED') {
+                            alert('Knowledge base sync completed successfully');
+                        } else if (data.status === 'FAILED') {
+                            alert(`Knowledge base sync failed: ${data.error_message}`);
+                        } else if (['IN_PROGRESS', 'PENDING'].includes(data.status)) {
+                            // Continue polling if still in progress
+                            setTimeout(checkStatus, 5000); // Check every 5 seconds
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking ingestion status:', error);
+                    });
+            };
+
+            // Start polling
+            checkStatus();
         }
     </script>
 </body>
