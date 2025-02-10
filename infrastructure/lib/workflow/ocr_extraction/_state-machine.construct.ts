@@ -22,7 +22,8 @@ import * as path from "path";
  * 1. Process Report PDF - Receives the PDF and prepares it for processing
  * 2. Map (Process Pages) - Processes each page in parallel (max 5 concurrent)
  *    - Extract Page and Save Extraction - Extracts text from page and saves results
- * 3. Update Report as Completed - Marks the report processing as complete
+ * 3. Aggregate Extractions - Aggregates extracted text from all pages
+ * 4. Update Report as Completed - Marks the report processing as complete
  *
  * Expected Input:
  * {
@@ -50,6 +51,12 @@ import * as path from "path";
  *   "pageNumber": number,
  *   "extractedText": "string",
  *   "confidence": number
+ * }
+ *
+ * Aggregate Extractions:
+ * {
+ *   "reportId": "string",
+ *   "status": "COMPLETED"
  * }
  *
  * Update Report as Completed:
@@ -80,12 +87,15 @@ export class OcrExtractionWorkflow extends Construct {
     // Create Lambda functions
     const processReportFunction = this.createProcessReportFunction();
     const extractPageFunction = this.createExtractPageFunction();
+    const aggregateExtractionsFunction =
+      this.createAggregateExtractionsFunction();
     const updateReportStatusFunction = this.createUpdateReportStatusFunction();
 
     // Create state machine
     const definition = this.defineStateMachine(
       processReportFunction,
       extractPageFunction,
+      aggregateExtractionsFunction,
       updateReportStatusFunction
     );
 
@@ -104,6 +114,9 @@ export class OcrExtractionWorkflow extends Construct {
       extractPageFunction
     );
     this.props.dynamodbStack.reportTable.table.grantReadWriteData(
+      aggregateExtractionsFunction
+    );
+    this.props.dynamodbStack.reportTable.table.grantReadWriteData(
       updateReportStatusFunction
     );
 
@@ -113,6 +126,9 @@ export class OcrExtractionWorkflow extends Construct {
     );
     this.props.storageStack.reportExtractionsBucket.bucket.grantReadWrite(
       extractPageFunction
+    );
+    this.props.storageStack.reportExtractionsBucket.bucket.grantRead(
+      aggregateExtractionsFunction
     );
 
     // Create the DynamoDB stream trigger
@@ -150,7 +166,7 @@ export class OcrExtractionWorkflow extends Construct {
             this.props.dynamodbStack.reportTable.table.tableName,
         },
         memorySize: 2048,
-        timeout: cdk.Duration.minutes(5),
+        timeout: cdk.Duration.minutes(15),
       }
     );
 
@@ -166,6 +182,22 @@ export class OcrExtractionWorkflow extends Construct {
     );
 
     return extractPageFunction;
+  }
+
+  private createAggregateExtractionsFunction(): lambda.Function {
+    return new LambdaPythonFunction(this, "AggregateExtractionsFunction", {
+      entry: path.join(__dirname, "aggregate_extractions"),
+      layer: this.layer,
+      environment: {
+        POWERTOOLS_SERVICE_NAME: "ocr-extraction-workflow",
+        ENVIRONMENT: this.props.environment || "dev",
+        REPORT_EXTRACTIONS_BUCKET_NAME:
+          this.props.storageStack.reportExtractionsBucket.bucket.bucketName,
+        REPORT_TABLE_NAME: this.props.dynamodbStack.reportTable.table.tableName,
+      },
+      memorySize: 1024,
+      timeout: cdk.Duration.minutes(5),
+    });
   }
 
   private createUpdateReportStatusFunction(): lambda.Function {
@@ -185,6 +217,7 @@ export class OcrExtractionWorkflow extends Construct {
   private defineStateMachine(
     processReportFunction: lambda.Function,
     extractPageFunction: lambda.Function,
+    aggregateExtractionsFunction: lambda.Function,
     updateReportStatusFunction: lambda.Function
   ): sfn.IChainable {
     // Process Report PDF task
@@ -202,12 +235,13 @@ export class OcrExtractionWorkflow extends Construct {
         lambdaFunction: extractPageFunction,
         comment: "Extract text from page using OCR",
         payloadResponseOnly: true,
+        timeout: cdk.Duration.minutes(5),
       }
     );
 
     // Map state for processing pages
     const processPages = new sfn.Map(this, "Map", {
-      maxConcurrency: 5,
+      maxConcurrency: 15,
       itemsPath: sfn.JsonPath.stringAt("$.pages"),
       parameters: {
         "reportId.$": "$.reportId",
@@ -227,6 +261,21 @@ export class OcrExtractionWorkflow extends Construct {
       jitterStrategy: sfn.JitterType.FULL,
     });
 
+    // Add Aggregate Extractions task
+    const aggregateExtractions = new StandardLambdaInvoke(
+      this,
+      "AggregateExtractions",
+      {
+        lambdaFunction: aggregateExtractionsFunction,
+        comment: "Aggregate extracted text from all pages",
+        payloadResponseOnly: true,
+        payload: sfn.TaskInput.fromObject({
+          "reportId.$": "$.reportId",
+          "extractionResults.$": "$.extractionResults",
+        }),
+      }
+    );
+
     // Update Report Status Success task
     const updateReportSuccess = new StandardLambdaInvoke(
       this,
@@ -236,7 +285,7 @@ export class OcrExtractionWorkflow extends Construct {
         comment: "Mark report processing as completed",
         payloadResponseOnly: true,
         payload: sfn.TaskInput.fromObject({
-          "reportId.$": "$.extractionResults[0].reportId",
+          "reportId.$": "$.reportId",
           status: "COMPLETED",
         }),
       }
@@ -264,7 +313,10 @@ export class OcrExtractionWorkflow extends Construct {
     });
 
     // Chain the workflow
-    return processReport.next(processPages).next(updateReportSuccess);
+    return processReport
+      .next(processPages)
+      .next(aggregateExtractions)
+      .next(updateReportSuccess);
   }
 
   /**

@@ -105,6 +105,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
         }
         
         # Invoke Bedrock
+        logger.info(f"Invoking Bedrock for page {page_number}")
         bedrock_response = bedrock.invoke_model(
             modelId="anthropic.claude-3-sonnet-20240229-v1:0",
             body=json.dumps(body)
@@ -124,6 +125,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
         )
         
         logger.info(f"Successfully extracted text from page {page_number} for report {report_id}")
+
         return {
             "reportId": report_id,
             "pageNumber": page_number,
