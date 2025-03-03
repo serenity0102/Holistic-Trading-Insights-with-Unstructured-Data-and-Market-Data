@@ -10,6 +10,7 @@ import { LambdaPythonFunction } from "../../common/lambda-python.construct";
 import { StandardLambdaInvoke } from "../../common/lambda-invoke.construct";
 import { DynamoDBStack } from "../../stacks/dynamodb.stack";
 import { StorageStack } from "../../stacks/storage.stack";
+import { OpenSearchStack } from "../../stacks/opensearch.stack";
 import * as path from "path";
 
 /**
@@ -23,7 +24,8 @@ import * as path from "path";
  * 2. Map (Process Pages) - Processes each page in parallel (max 5 concurrent)
  *    - Extract Page and Save Extraction - Extracts text from page and saves results
  * 3. Aggregate Extractions - Aggregates extracted text from all pages
- * 4. Update Report as Completed - Marks the report processing as complete
+ * 4. Index to OpenSearch - Generates embeddings and stores in OpenSearch
+ * 5. Update Report as Completed - Marks the report processing as complete
  *
  * Expected Input:
  * {
@@ -56,6 +58,15 @@ import * as path from "path";
  * Aggregate Extractions:
  * {
  *   "reportId": "string",
+ *   "extraction": "string",      // Complete text from all pages
+ *   "status": "COMPLETED"
+ * }
+ *
+ * Index to OpenSearch:
+ * {
+ *   "reportId": "string",
+ *   "extraction": "string",
+ *   "opensearch_doc_id": "string", // ID of the document in OpenSearch
  *   "status": "COMPLETED"
  * }
  *
@@ -71,6 +82,7 @@ export interface OcrExtractionWorkflowProps {
   environment?: string;
   dynamodbStack: DynamoDBStack;
   storageStack: StorageStack;
+  openSearchStack?: OpenSearchStack; // Make this optional to maintain backward compatibility
   layer: lambda.LayerVersion;
 }
 
@@ -89,6 +101,7 @@ export class OcrExtractionWorkflow extends Construct {
     const extractPageFunction = this.createExtractPageFunction();
     const aggregateExtractionsFunction =
       this.createAggregateExtractionsFunction();
+    const indexToOpenSearchFunction = this.createIndexToOpenSearchFunction();
     const updateReportStatusFunction = this.createUpdateReportStatusFunction();
 
     // Create state machine
@@ -96,6 +109,7 @@ export class OcrExtractionWorkflow extends Construct {
       processReportFunction,
       extractPageFunction,
       aggregateExtractionsFunction,
+      indexToOpenSearchFunction,
       updateReportStatusFunction
     );
 
@@ -115,6 +129,9 @@ export class OcrExtractionWorkflow extends Construct {
     );
     this.props.dynamodbStack.reportTable.table.grantReadWriteData(
       aggregateExtractionsFunction
+    );
+    this.props.dynamodbStack.reportTable.table.grantReadWriteData(
+      indexToOpenSearchFunction
     );
     this.props.dynamodbStack.reportTable.table.grantReadWriteData(
       updateReportStatusFunction
@@ -200,6 +217,57 @@ export class OcrExtractionWorkflow extends Construct {
     });
   }
 
+  private createIndexToOpenSearchFunction(): lambda.Function {
+    const indexToOpenSearchFunction = new LambdaPythonFunction(
+      this,
+      "IndexToOpenSearchFunction",
+      {
+        entry: path.join(__dirname, "index_to_opensearch"),
+        layer: this.layer,
+        environment: {
+          POWERTOOLS_SERVICE_NAME: "ocr-extraction-workflow",
+          ENVIRONMENT: this.props.environment || "dev",
+          REPORT_TABLE_NAME:
+            this.props.dynamodbStack.reportTable.table.tableName,
+          OPENSEARCH_ENDPOINT: this.props.openSearchStack?.endpoint
+            ? this.props.openSearchStack.endpoint.replace(/^https?:\/\//, "")
+            : "",
+          OPENSEARCH_INDEX: "reports",
+          REGION: cdk.Stack.of(this).region,
+        },
+        memorySize: 1024,
+        timeout: cdk.Duration.minutes(5),
+      }
+    );
+
+    // Add permissions to invoke Bedrock for embeddings
+    indexToOpenSearchFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:${
+            cdk.Stack.of(this).region
+          }::foundation-model/cohere.embed-english-v3`,
+        ],
+      })
+    );
+
+    // Add permissions for OpenSearch
+    indexToOpenSearchFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "es:ESHttpGet",
+          "es:ESHttpPut",
+          "es:ESHttpPost",
+          "aoss:APIAccessAll",
+        ],
+        resources: ["*"],
+      })
+    );
+
+    return indexToOpenSearchFunction;
+  }
+
   private createUpdateReportStatusFunction(): lambda.Function {
     return new LambdaPythonFunction(this, "UpdateReportStatusFunction", {
       entry: path.join(__dirname, "update_report_status"),
@@ -218,6 +286,7 @@ export class OcrExtractionWorkflow extends Construct {
     processReportFunction: lambda.Function,
     extractPageFunction: lambda.Function,
     aggregateExtractionsFunction: lambda.Function,
+    indexToOpenSearchFunction: lambda.Function,
     updateReportStatusFunction: lambda.Function
   ): sfn.IChainable {
     // Process Report PDF task
@@ -276,6 +345,21 @@ export class OcrExtractionWorkflow extends Construct {
       }
     );
 
+    // Add Index to OpenSearch task
+    const indexToOpenSearch = new StandardLambdaInvoke(
+      this,
+      "IndexToOpenSearch",
+      {
+        lambdaFunction: indexToOpenSearchFunction,
+        comment: "Generate embeddings and save to OpenSearch",
+        payloadResponseOnly: true,
+        payload: sfn.TaskInput.fromObject({
+          "reportId.$": "$.reportId",
+        }),
+        resultPath: "$.opensearchResult",
+      }
+    );
+
     // Update Report Status Success task
     const updateReportSuccess = new StandardLambdaInvoke(
       this,
@@ -312,11 +396,15 @@ export class OcrExtractionWorkflow extends Construct {
       resultPath: "$.error",
     });
 
-    // Chain the workflow
-    return processReport
+    // Define workflow based on whether OpenSearch is available
+    const workflowWithOpenSearch = processReport
       .next(processPages)
       .next(aggregateExtractions)
+      .next(indexToOpenSearch)
       .next(updateReportSuccess);
+
+    // Chain the workflow
+    return workflowWithOpenSearch;
   }
 
   /**

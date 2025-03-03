@@ -1,8 +1,8 @@
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import * as tasks from "aws-cdk-lib/aws-stepfunctions-tasks";
+import { Construct } from "constructs";
 
 interface StandardLambdaInvokeProps {
   /**
@@ -53,18 +53,23 @@ interface StandardLambdaInvokeProps {
    * Input payload for the Lambda function
    */
   payload?: sfn.TaskInput;
+
+  /**
+   * Result path for the Lambda function
+   */
+  resultPath?: string;
 }
 
 /**
  * Standard Lambda Invoke task with consistent retry and error handling
- * 
+ *
  * Default retry configuration:
  * - 100 maximum attempts
  * - 30 seconds initial interval
  * - 1.1 backoff rate
  * - 6 hours maximum delay
  * - Full jitter
- * 
+ *
  * Default error handling:
  * - Retries on common Lambda and States errors
  * - Catches all unhandled errors
@@ -79,7 +84,8 @@ export class StandardLambdaInvoke extends tasks.LambdaInvoke {
       payloadResponseOnly: props.payloadResponseOnly ?? true,
       retryOnServiceExceptions: false,
       timeout: props.timeout ?? cdk.Duration.seconds(30),
-      payload: props.payload
+      payload: props.payload,
+      resultPath: props.resultPath,
     });
 
     // Initialize standard retry configuration
@@ -90,17 +96,17 @@ export class StandardLambdaInvoke extends tasks.LambdaInvoke {
       maxDelay: cdk.Duration.seconds(21600), // 6 hours
       jitterStrategy: sfn.JitterType.FULL,
       errors: [
-        'States.TaskFailed',
-        'Lambda.ServiceException',
-        'Lambda.AWSLambdaException',
-        'Lambda.SdkClientException',
-        'Lambda.TooManyRequestsException',
-        'Lambda.EC2ThrottledException',
-        'Lambda.ProvisionedConcurrencyException',
-        'Lambda.ResourceNotFoundException',
-        'States.Timeout',
-        'States.InternalError'
-      ]
+        "States.TaskFailed",
+        "Lambda.ServiceException",
+        "Lambda.AWSLambdaException",
+        "Lambda.SdkClientException",
+        "Lambda.TooManyRequestsException",
+        "Lambda.EC2ThrottledException",
+        "Lambda.ProvisionedConcurrencyException",
+        "Lambda.ResourceNotFoundException",
+        "States.Timeout",
+        "States.InternalError",
+      ],
     };
 
     // Apply retry configuration
@@ -175,31 +181,35 @@ interface StandardLambdaInvokeWithCallbackProps {
 
 /**
  * Standard Lambda Invoke task with task token callback pattern
- * 
+ *
  * Default configuration:
  * - 7 days task timeout
  * - 1 day heartbeat timeout
  * - Wait for callback integration pattern
  * - Standard retry configuration for Lambda errors
- * 
+ *
  * Use this for long-running tasks that require external completion
  * through SendTaskSuccess/SendTaskFailure API calls
  */
 export class StandardLambdaInvokeWithCallback extends tasks.LambdaInvoke {
   private retryProps: sfn.RetryProps;
 
-  constructor(scope: Construct, id: string, props: StandardLambdaInvokeWithCallbackProps) {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: StandardLambdaInvokeWithCallbackProps
+  ) {
     super(scope, id, {
       lambdaFunction: props.lambdaFunction,
       comment: props.comment,
       integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
       payload: sfn.TaskInput.fromObject({
         ...props.payload,
-        'taskToken': sfn.JsonPath.taskToken
+        taskToken: sfn.JsonPath.taskToken,
       }),
       retryOnServiceExceptions: false,
       timeout: props.timeout ?? cdk.Duration.days(7),
-      heartbeat: props.heartbeatTimeout ?? cdk.Duration.days(1)
+      heartbeat: props.heartbeatTimeout ?? cdk.Duration.days(1),
     });
 
     // Initialize standard retry configuration
@@ -210,14 +220,14 @@ export class StandardLambdaInvokeWithCallback extends tasks.LambdaInvoke {
       maxDelay: cdk.Duration.seconds(21600), // 6 hours
       jitterStrategy: sfn.JitterType.FULL,
       errors: [
-        'States.TaskFailed',
-        'Lambda.ServiceException',
-        'Lambda.AWSLambdaException',
-        'Lambda.SdkClientException',
-        'Lambda.TooManyRequestsException',
-        'States.Timeout',
-        'States.HeartbeatTimeout'
-      ]
+        "States.TaskFailed",
+        "Lambda.ServiceException",
+        "Lambda.AWSLambdaException",
+        "Lambda.SdkClientException",
+        "Lambda.TooManyRequestsException",
+        "States.Timeout",
+        "States.HeartbeatTimeout",
+      ],
     };
 
     // Apply retry configuration
@@ -238,4 +248,4 @@ export class StandardLambdaInvokeWithCallback extends tasks.LambdaInvoke {
     this.addRetry(this.retryProps);
     return this;
   }
-} 
+}

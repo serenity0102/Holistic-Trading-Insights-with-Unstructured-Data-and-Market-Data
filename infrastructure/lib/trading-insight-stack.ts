@@ -43,6 +43,7 @@ export class TradingInsightStack extends cdk.Stack {
       environment: environment,
       dynamodbStack: this.dynamodbStack,
       storageStack: this.storageStack,
+      openSearchStack: openSearchStack,
     });
   }
 }
