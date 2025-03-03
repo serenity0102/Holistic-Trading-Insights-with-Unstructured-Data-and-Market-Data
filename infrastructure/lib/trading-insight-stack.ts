@@ -1,16 +1,15 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { ApiStack } from "./stacks/api.stack";
 import { DynamoDBStack } from "./stacks/dynamodb.stack";
-import { WorkflowStack } from "./stacks/workflow.stack";
 import { StorageStack } from "./stacks/storage.stack";
+import { WorkflowStack } from "./stacks/workflow.stack";
 import { Tags } from "aws-cdk-lib";
+import { OpenSearchStack } from "./stacks/opensearch.stack";
 
 export class TradingInsightStack extends cdk.Stack {
-  public readonly apiStack: ApiStack;
   public readonly dynamodbStack: DynamoDBStack;
-  public readonly workflowStack: WorkflowStack;
   public readonly storageStack: StorageStack;
+  public readonly workflowStack: WorkflowStack;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -19,27 +18,26 @@ export class TradingInsightStack extends cdk.Stack {
     // Get environment from context
     const environment = this.node.tryGetContext("environment") || "dev";
 
-    // Create Storage Stack
-    this.storageStack = new StorageStack(this, "StorageStack", {
-      description: "Storage nested stack containing S3 buckets",
-      environment: environment,
-    });
-
-    // Create DynamoDB Stack
+    // Create DynamoDB Stack first
     this.dynamodbStack = new DynamoDBStack(this, "DynamoDBStack", {
-      description: "DynamoDB nested stack containing database tables",
+      description: "DynamoDB nested stack containing tables",
       environment: environment,
     });
 
-    // Create API Stack as nested stack with dependencies
-    this.apiStack = new ApiStack(this, "ApiStack", {
-      description:
-        "API nested stack containing API Gateway and Lambda functions",
-      dynamodbStack: this.dynamodbStack,
+    // Create OpenSearch stack
+    const openSearchStack = new OpenSearchStack(this, "OpenSearchStack", {
       environment: environment,
+      reportTable: this.dynamodbStack.reportTable.table,
     });
 
-    // Create Workflow Stack
+    // Then create Storage Stack with DynamoDB table reference
+    this.storageStack = new StorageStack(this, "StorageStack", {
+      description: "Storage nested stack containing S3 buckets and search",
+      environment: environment,
+      reportTable: this.dynamodbStack.reportTable.table,
+    });
+
+    // Finally create Workflow Stack
     this.workflowStack = new WorkflowStack(this, "WorkflowStack", {
       description: "Workflow nested stack containing Step Functions",
       environment: environment,
