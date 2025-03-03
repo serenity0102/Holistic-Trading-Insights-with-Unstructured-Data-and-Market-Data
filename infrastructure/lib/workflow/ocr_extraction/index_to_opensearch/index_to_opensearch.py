@@ -45,37 +45,74 @@ client = get_opensearch_client()
 
 # Create index if not exists
 def ensure_index_exists():
-    if not client.indices.exists(OPENSEARCH_INDEX):
-        index_body = {
-            "settings": {
-                "index.knn": True,
-            },
-            "mappings": {
-                "properties": {
-                    "pk": {"type": "keyword"},
-                    "sk": {"type": "keyword"},
-                    "text_embedding": {
-                        "type": "knn_vector",
-                        "dimension": 1024,
-                        "method": {
-                            "name": "hnsw",
-                            "space_type": "cosine",
-                            "engine": "nmslib",
-                            "parameters": {
-                                "ef_construction": 128,
-                                "m": 16
+    """Ensure index exists with the proper mapping for KNN search"""
+    
+    logger.info(f"Checking if index {OPENSEARCH_INDEX} exists")
+    
+    try:
+        # First check if index exists
+        if not client.indices.exists(OPENSEARCH_INDEX):
+            logger.info(f"Creating index {OPENSEARCH_INDEX} with KNN mapping")
+            
+            # Define index with KNN settings
+            index_body = {
+                "settings": {
+                    "index.knn": True,
+                },
+                "mappings": {
+                    "properties": {
+                        "pk": {"type": "keyword"},
+                        "sk": {"type": "keyword"},
+                        "text_embedding": {
+                            "type": "knn_vector",
+                            "dimension": 1024,
+                            "method": {
+                                "name": "hnsw",
+                                "space_type": "l2",
+                                "engine": "nmslib",
+                                "parameters": {
+                                    "ef_construction": 128,
+                                    "m": 16
+                                }
                             }
-                        }
-                    },
-                    "extraction": {"type": "text"},
-                    "title": {"type": "text"},
-                    "company": {"type": "keyword"},
-                    "report_date": {"type": "date"},
-                    "metadata": {"type": "object"}
+                        },
+                        "extraction": {"type": "text"},
+                        "company": {"type": "keyword"},
+                        # Use keyword type instead of date to avoid parsing issues
+                        "report_date": {"type": "keyword"},
+                        "metadata": {"type": "object"}
+                    }
                 }
             }
-        }
-        client.indices.create(OPENSEARCH_INDEX, body=index_body)
+            
+            # Create the index with mapping
+            client.indices.create(OPENSEARCH_INDEX, body=index_body)
+            logger.info(f"Successfully created index {OPENSEARCH_INDEX}")
+        else:
+            # Verify if the mapping is correct for KNN
+            try:
+                mapping = client.indices.get_mapping(index=OPENSEARCH_INDEX)
+                
+                # Check if text_embedding exists and is a knn_vector
+                properties = mapping.get(OPENSEARCH_INDEX, {}).get('mappings', {}).get('properties', {})
+                embedding_field = properties.get('text_embedding', {})
+                
+                if embedding_field.get('type') != 'knn_vector':
+                    logger.warning(f"Index {OPENSEARCH_INDEX} exists but text_embedding is not a knn_vector. " +
+                                   "Deleting and recreating the index.")
+                    
+                    # Delete the index
+                    client.indices.delete(index=OPENSEARCH_INDEX)
+                    
+                    # Recursively call to create the index fresh
+                    ensure_index_exists()
+            except Exception as mapping_error:
+                logger.error(f"Error checking index mapping: {str(mapping_error)}")
+                raise mapping_error
+            
+    except Exception as e:
+        logger.error(f"Error ensuring index exists: {str(e)}")
+        raise e
 
 # Get embedding from Cohere model
 def get_embedding(text):

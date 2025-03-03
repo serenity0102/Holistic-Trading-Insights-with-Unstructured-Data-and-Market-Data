@@ -5,11 +5,14 @@ import { StorageStack } from "./stacks/storage.stack";
 import { WorkflowStack } from "./stacks/workflow.stack";
 import { Tags } from "aws-cdk-lib";
 import { OpenSearchStack } from "./stacks/opensearch.stack";
+import { ApiStack } from "./stacks/api.stack";
 
 export class TradingInsightStack extends cdk.Stack {
   public readonly dynamodbStack: DynamoDBStack;
   public readonly storageStack: StorageStack;
   public readonly workflowStack: WorkflowStack;
+  public readonly openSearchStack: OpenSearchStack;
+  public readonly apiStack: ApiStack;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -25,7 +28,7 @@ export class TradingInsightStack extends cdk.Stack {
     });
 
     // Create OpenSearch stack
-    const openSearchStack = new OpenSearchStack(this, "OpenSearchStack", {
+    this.openSearchStack = new OpenSearchStack(this, "OpenSearchStack", {
       environment: environment,
       reportTable: this.dynamodbStack.reportTable.table,
     });
@@ -43,7 +46,16 @@ export class TradingInsightStack extends cdk.Stack {
       environment: environment,
       dynamodbStack: this.dynamodbStack,
       storageStack: this.storageStack,
-      openSearchStack: openSearchStack,
+      openSearchStack: this.openSearchStack,
+    });
+
+    // Add API Stack
+    this.apiStack = new ApiStack(this, "ApiStack", {
+      description:
+        "API nested stack containing API Gateway and Lambda functions",
+      environment: environment,
+      dynamodbStack: this.dynamodbStack,
+      openSearchStack: this.openSearchStack,
     });
   }
 }
