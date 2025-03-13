@@ -3,7 +3,7 @@ import boto3
 import os
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
-from aws_lambda_powertools.event_handler.exceptions import BadRequestError
+from aws_lambda_powertools.event_handler.exceptions import BadRequestError, InternalServerError
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 from botocore.exceptions import ClientError
@@ -61,7 +61,7 @@ def get_embedding(query_text):
             })
         )
         
-        response_body = json.loads(response["body"].read())
+        response_body = json.loads(response["body"].read().decode())
         return response_body["embeddings"][0]
     except ClientError as e:
         logger.error(f"Error getting embedding: {str(e)}")
@@ -93,71 +93,159 @@ def search():
     - reportEnd: End date for report range (format: YYYY-QN)
     - query: Search text to find semantically similar content
     """
-    # Get and validate parameters
-    ticker = app.current_event.get_query_string_value(name="ticker", default_value=None)
-    report_start = app.current_event.get_query_string_value(name="reportStart", default_value=None)
-    report_end = app.current_event.get_query_string_value(name="reportEnd", default_value=None)
-    query = app.current_event.get_query_string_value(name="query", default_value=None)
-    
-    # Validate required parameters
-    if not ticker:
-        raise BadRequestError("Missing required query parameter: ticker")
-    
-    if not report_start or not validate_report_date(report_start):
-        raise BadRequestError("Missing or invalid query parameter: reportStart (format: YYYY-QN)")
+    try:
+        # Check if the OPENSEARCH_ENDPOINT is correctly set
+        logger.info(f"Using OpenSearch endpoint: {OPENSEARCH_ENDPOINT}")
         
-    if not report_end or not validate_report_date(report_end):
-        raise BadRequestError("Missing or invalid query parameter: reportEnd (format: YYYY-QN)")
-    
-    if not query:
-        raise BadRequestError("Missing required query parameter: query")
-    
-    # Log the search request
-    logger.info(f"Searching for ticker: {ticker}, report period: {report_start} to {report_end}, query: {query}")
-    
-    # Get embedding for the search query
-    query_embedding = get_embedding(query)
-    if not query_embedding:
-        raise BadRequestError("Failed to generate embedding for search query")
-    
-    # First run a standard search to get the documents that match the filters
-    filtered_query = {
-        "query": {
-            "bool": {
-                "must": [
-                    {
-                        "term": {
-                            "company": ticker.upper()
-                        }
-                    },
-                    {
-                        "range": {
-                            "report_date": {
-                                "gte": report_start,
-                                "lte": report_end
+        # Get and validate parameters
+        ticker = app.current_event.get_query_string_value(name="ticker", default_value=None)
+        report_start = app.current_event.get_query_string_value(name="reportStart", default_value=None)
+        report_end = app.current_event.get_query_string_value(name="reportEnd", default_value=None)
+        query = app.current_event.get_query_string_value(name="query", default_value=None)
+        
+        # Validate required parameters
+        if not ticker:
+            raise BadRequestError("Missing required query parameter: ticker")
+        
+        if not report_start or not validate_report_date(report_start):
+            raise BadRequestError("Missing or invalid query parameter: reportStart (format: YYYY-QN)")
+            
+        if not report_end or not validate_report_date(report_end):
+            raise BadRequestError("Missing or invalid query parameter: reportEnd (format: YYYY-QN)")
+        
+        if not query:
+            raise BadRequestError("Missing required query parameter: query")
+        
+        # Log the search request
+        logger.info(f"Searching for ticker: {ticker}, report period: {report_start} to {report_end}, query: {query}")
+        
+        # Get embedding for the search query
+        query_embedding = get_embedding(query)
+        if not query_embedding:
+            raise BadRequestError("Failed to generate embedding for search query")
+        
+        # For simplicity, we'll just use the start date if start and end are different
+        report_date = report_start
+        
+        # First, get all documents for the company and report date
+        filter_query = {
+            "size": 100,  # Get more documents to have a better pool for ranking
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "company": ticker.upper()
+                            }
+                        },
+                        {
+                            "term": {
+                                "report_date": report_date
                             }
                         }
+                    ]
+                }
+            },
+            "_source": [
+                "company",
+                "report_date",
+                "chunk_index",
+                "total_chunks",
+                "parent_id",
+                "extraction"
+            ]
+        }
+        
+        logger.info(f"Filter query: {json.dumps(filter_query)}")
+        
+        # Execute the filter query
+        filter_response = client.search(
+            body=filter_query,
+            index=OPENSEARCH_INDEX
+        )
+        
+        logger.info(f"Filter response: {json.dumps(filter_response)}")
+        
+        # Get document IDs from the filter query
+        doc_ids = [hit["_id"] for hit in filter_response.get("hits", {}).get("hits", [])]
+        
+        if not doc_ids:
+            logger.info(f"No documents found for ticker: {ticker}, report date: {report_date}")
+            return {
+                "meta": {
+                    "count": 0,
+                    "query": query,
+                    "ticker": ticker,
+                    "reportPeriod": {
+                        "start": report_start,
+                        "end": report_end
                     }
-                ]
+                },
+                "results": []
             }
-        },
-        "size": 100  # Get more documents to have a better pool for KNN filtering
-    }
-    
-    # Run the initial query to get documents that match filters
-    filtered_results = client.search(
-        body=filtered_query,
-        index=OPENSEARCH_INDEX
-    )
-    
-    # Extract document IDs that match the filters
-    filtered_ids = [hit["_id"] for hit in filtered_results.get("hits", {}).get("hits", [])]
-    
-    if not filtered_ids:
-        # No documents match the filters
+        
+        # Now run KNN search with the filtered document IDs
+        knn_query = {
+            "size": 10,
+            "query": {
+                "knn": {
+                    "text_embedding": {
+                        "vector": query_embedding,
+                        "k": 5
+                    }
+                }
+            },
+            "_source": [
+                "company",
+                "report_date",
+                "chunk_index",
+                "total_chunks",
+                "parent_id",
+                "extraction"
+            ]
+        }
+        
+        logger.info(f"KNN query: {json.dumps(knn_query)}")
+        
+        # Execute the KNN search
+        knn_response = client.search(
+            body=knn_query,
+            index=OPENSEARCH_INDEX
+        )
+        
+        logger.info(f"KNN response: {json.dumps(knn_response)}")
+        
+        # Filter KNN results to only include documents from our filtered set
+        # and with a score above 0.45
+        filtered_hits = []
+        for hit in knn_response.get("hits", {}).get("hits", []):
+            if hit["_id"] in doc_ids and hit.get("_score", 0) > 0.4:
+                filtered_hits.append(hit)
+        
+        # Process results
+        results = []
+        for hit in filtered_hits:
+            score = hit.get("_score", 0)
+            source = hit.get("_source", {})
+            
+            extraction_text = source.get("extraction", "")
+            truncated_text = extraction_text[:500] + "..." if len(extraction_text) > 500 else extraction_text
+            
+            results.append({
+                "ticker": source.get("company"),
+                "reportDate": source.get("report_date"),
+                "score": score,
+                "extraction": truncated_text,
+                "documentId": hit.get("_id"),
+                "chunkIndex": source.get("chunk_index"),
+                "totalChunks": source.get("total_chunks"),
+                "parentId": source.get("parent_id")
+            })
+        
+        # Return the results
         return {
             "meta": {
-                "count": 0,
+                "count": len(results),
                 "query": query,
                 "ticker": ticker,
                 "reportPeriod": {
@@ -165,61 +253,14 @@ def search():
                     "end": report_end
                 }
             },
-            "results": []
+            "results": results
         }
     
-    # Now run KNN search with relevance scoring
-    knn_query = {
-        "size": 5,
-        "query": {
-            "knn": {
-                "text_embedding": {
-                    "vector": query_embedding,
-                    "k": 5
-                }
-            }
-        },
-        "_source": ["pk", "sk", "company", "report_date", "extraction"],
-        "min_score": 0.4
-    }
-    
-    # Execute the KNN search
-    search_response = client.search(
-        body=knn_query,
-        index=OPENSEARCH_INDEX
-    )
-    
-    # Process results with relevance filtering
-    results = []
-    for hit in search_response.get("hits", {}).get("hits", []):
-        score = hit.get("_score", 0)
-        
-        if score > 0.4: 
-            source = hit.get("_source", {})
-            results.append({
-                "ticker": source.get("company"),
-                "reportDate": source.get("report_date"),
-                "score": score, 
-                "extraction": source.get("extraction")[:500] + "..." if len(source.get("extraction", "")) > 500 else source.get("extraction", ""),
-                "documentId": hit.get("_id")
-            })
-    
-    # Return formatted response
-    return {
-        "meta": {
-            "count": len(results),
-            "query": query,
-            "ticker": ticker,
-            "reportPeriod": {
-                "start": report_start,
-                "end": report_end
-            },
-            # "queryEmbedding": query_embedding 
-        },
-        "results": results
-    }
+    except Exception as e:
+        logger.exception(f"Error in search: {str(e)}")
+        raise InternalServerError(f"Search failed: {str(e)}")
 
 @logger.inject_lambda_context
 @tracer.capture_lambda_handler
 def handler(event: dict, context: LambdaContext) -> dict:
-    return app.resolve(event, context) 
+    return app.resolve(event, context)

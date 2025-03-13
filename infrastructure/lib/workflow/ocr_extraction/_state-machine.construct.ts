@@ -240,7 +240,7 @@ export class OcrExtractionWorkflow extends Construct {
       }
     );
 
-    // Add permissions to invoke Bedrock for embeddings
+    // Add permissions to invoke Bedrock for embeddings and chunking
     indexToOpenSearchFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["bedrock:InvokeModel"],
@@ -248,6 +248,9 @@ export class OcrExtractionWorkflow extends Construct {
           `arn:aws:bedrock:${
             cdk.Stack.of(this).region
           }::foundation-model/cohere.embed-english-v3`,
+          `arn:aws:bedrock:${
+            cdk.Stack.of(this).region
+          }::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0`,
         ],
       })
     );

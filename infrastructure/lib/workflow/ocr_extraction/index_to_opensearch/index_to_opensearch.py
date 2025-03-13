@@ -78,9 +78,10 @@ def ensure_index_exists():
                         },
                         "extraction": {"type": "text"},
                         "company": {"type": "keyword"},
-                        # Use keyword type instead of date to avoid parsing issues
                         "report_date": {"type": "keyword"},
-                        "metadata": {"type": "object"}
+                        "chunk_index": {"type": "integer"},
+                        "total_chunks": {"type": "integer"},
+                        "parent_id": {"type": "keyword"}
                     }
                 }
             }
@@ -114,14 +115,113 @@ def ensure_index_exists():
         logger.error(f"Error ensuring index exists: {str(e)}")
         raise e
 
+# Semantic chunking with Claude 3.7
+def semantic_chunk_with_claude(text, max_chunk_size=2000):
+    """
+    Use Claude 3.7 to split text into semantic chunks that fit within Cohere's limits
+    
+    Args:
+        text: The text to chunk
+        max_chunk_size: Maximum size of each chunk (in characters, as a proxy for tokens)
+        
+    Returns:
+        List of text chunks
+    """
+    # If text is small enough, return as is
+    if len(text) <= max_chunk_size:
+        return [text]
+    
+    # Truncate text if extremely long to fit in Claude's context window
+    max_text_length = 150000  # characters, rough approximation
+    if len(text) > max_text_length:
+        text = text[:max_text_length]
+    
+    prompt = f"""
+    You are an expert document analyzer. I need you to divide the following document into semantic chunks.
+    
+    Each chunk should:
+    1. Be approximately {max_chunk_size} characters or less (to ensure it fits within embedding model limits)
+    2. Preserve complete semantic units (don't cut in the middle of a topic)
+    3. Include logical section breaks where possible
+    4. Maintain context within each chunk
+    
+    Format your response as a JSON array of strings, where each string is a chunk of text.
+    Only include the JSON array in your response, nothing else.
+    
+    Here's the document to chunk:
+    
+    {text}
+    """
+    
+    try:
+        response = bedrock.invoke_model(
+            modelId="anthropic.claude-3-7-sonnet-20250219-v1:0",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 4096,
+                "temperature": 0,
+                "system": "You are an expert document analyzer that divides documents into semantic chunks. Output only valid JSON array of strings.",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            })
+        )
+        
+        response_body = json.loads(response["body"].read().decode())
+        content = response_body["content"][0]["text"]
+        
+        # Extract JSON from the response
+        # Find the first [ character and the last ] character
+        start_idx = content.find('[')
+        end_idx = content.rfind(']')
+        
+        if start_idx == -1 or end_idx == -1:
+            raise ValueError("Could not find JSON array in Claude's response")
+            
+        json_str = content[start_idx:end_idx+1]
+        chunks = json.loads(json_str)
+        
+        return chunks
+    
+    except Exception as e:
+        logger.error(f"Error in semantic chunking with Claude 3.7: {str(e)}")
+        # Fall back to simpler chunking method if Claude fails
+        return simple_chunk_text(text, chunk_size=max_chunk_size)
+
+def simple_chunk_text(text, chunk_size=2000, overlap=200):
+    """Simple fallback chunking method that splits by paragraphs"""
+    import re
+    
+    paragraphs = re.split(r'\n\s*\n', text)
+    chunks = []
+    current_chunk = ""
+    
+    for paragraph in paragraphs:
+        if len(current_chunk) + len(paragraph) > chunk_size:
+            chunks.append(current_chunk)
+            current_chunk = paragraph
+        else:
+            current_chunk += "\n\n" + paragraph if current_chunk else paragraph
+    
+    if current_chunk:
+        chunks.append(current_chunk)
+    
+    return chunks
+
 # Get embedding from Cohere model
 def get_embedding(text):
     if not text:
         return None
     
-    # Truncate text if too long (Cohere limit is around 8K tokens)
-    max_chars = 32000
+    # Cohere embed-english-v3 has a token limit, ensure we're within it
+    max_chars = 2000  # Reduced from 8000 to stay under the 2048 limit
     if len(text) > max_chars:
+        logger.warning(f"Text too long for embedding: {len(text)} chars. Truncating to {max_chars} chars.")
         text = text[:max_chars]
     
     try:
@@ -134,7 +234,7 @@ def get_embedding(text):
             })
         )
         
-        response_body = json.loads(response["body"].read())
+        response_body = json.loads(response["body"].read().decode())
         return response_body["embeddings"][0]
     except ClientError as e:
         logger.error(f"Error getting embedding: {str(e)}")
@@ -158,15 +258,12 @@ def handler(event, context: LambdaContext):
         logger.info(f"Processing report: {report_id}")
         
         # Parse reportId to get ticker and quarter
-        # Expected format: "TICKER#YYYY-QN" (e.g., "AAPL#2023-Q1")
         ticker, quarter = report_id.split("#", 1)
-        
-        # Parse quarter string to get year and quarter number
         year_str, quarter_str = quarter.split("-Q")
         year = int(year_str)
         quarter_num = int(quarter_str)
         
-        # Get the report from DynamoDB - similar to update_report_status.py
+        # Get the report from DynamoDB
         report = Report.get_by_ticker_and_quarter(
             ticker=ticker,
             year=year,
@@ -189,54 +286,56 @@ def handler(event, context: LambdaContext):
                 "error": "No extraction available for report"
             }
         
-        # Get embedding for the extraction text
-        logger.info(f"Getting embedding for {report_id}")
-        embedding = get_embedding(extraction)
-        
-        if not embedding:
-            logger.error("Failed to generate embedding")
-            return {
-                "statusCode": 500,
-                "error": "Failed to generate embedding"
-            }
+        # Use Claude 3.7 for semantic chunking
+        logger.info(f"Performing semantic chunking for {report_id}")
+        chunks = semantic_chunk_with_claude(extraction, max_chunk_size=2000)
         
         # Ensure OpenSearch index exists
         ensure_index_exists()
         
-        # Build metadata object
-        metadata = {
-            "report_year": year,
-            "report_quarter": quarter_num
-        }
-        
-        # Prepare document for OpenSearch
-        document = {
-            "pk": report.pk,
-            "sk": report.sk,
-            "extraction": extraction,
-            "text_embedding": embedding,
-            "company": ticker,
-            "report_date": quarter,
-            "metadata": metadata
-        }
-        
-        # Let OpenSearch generate an ID - without refresh policy
-        logger.info(f"Indexing document for {report_id} without specifying ID")
-        response = client.index(
-            index=OPENSEARCH_INDEX,
-            body=document
-        )
+        # Process each chunk
+        doc_ids = []
+        for i, chunk_text in enumerate(chunks):
+            # Get embedding for chunk using Cohere
+            logger.info(f"Getting embedding for chunk {i+1}/{len(chunks)} of {report_id}")
+            embedding = get_embedding(chunk_text)
+            
+            if not embedding:
+                logger.error(f"Failed to generate embedding for chunk {i+1}")
+                continue
+            
+            # Prepare document for OpenSearch
+            document = {
+                "pk": report.pk,
+                "sk": report.sk,
+                "extraction": chunk_text,
+                "text_embedding": embedding,
+                "company": ticker,
+                "report_date": quarter,
+                "chunk_index": i,
+                "total_chunks": len(chunks),
+                "parent_id": report_id
+            }
+            
+            # Index the document
+            logger.info(f"Indexing chunk {i+1}/{len(chunks)} for {report_id}")
+            response = client.index(
+                index=OPENSEARCH_INDEX,
+                body=document
+            )
+            
+            # Get the auto-generated ID from the response
+            generated_id = response.get("_id")
+            doc_ids.append(generated_id)
+            logger.info(f"Chunk {i+1} indexed successfully with ID: {generated_id}")
 
-        # Get the auto-generated ID from the response
-        generated_id = response.get("_id")
-        logger.info(f"Document indexed successfully with generated ID: {generated_id}")
-
-        # Return the generated ID
+        # Return the generated IDs
         return {
             "statusCode": 200,
             "reportId": report_id,
-            "opensearch_doc_id": generated_id,
-            "message": "Document indexed successfully"
+            "opensearch_doc_ids": doc_ids,
+            "chunks_processed": len(chunks),
+            "message": "Document chunked and indexed successfully"
         }
 
     except Exception as e:
@@ -244,4 +343,4 @@ def handler(event, context: LambdaContext):
         return {
             "statusCode": 500,
             "error": str(e)
-        } 
+        }
