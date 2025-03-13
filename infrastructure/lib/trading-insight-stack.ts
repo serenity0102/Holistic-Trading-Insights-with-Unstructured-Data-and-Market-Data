@@ -6,6 +6,7 @@ import { WorkflowStack } from "./stacks/workflow.stack";
 import { Tags } from "aws-cdk-lib";
 import { OpenSearchStack } from "./stacks/opensearch.stack";
 import { ApiStack } from "./stacks/api.stack";
+import { FrontendStack } from "./stacks/frontend.stack";
 
 export class TradingInsightStack extends cdk.Stack {
   public readonly dynamodbStack: DynamoDBStack;
@@ -13,6 +14,7 @@ export class TradingInsightStack extends cdk.Stack {
   public readonly workflowStack: WorkflowStack;
   public readonly openSearchStack: OpenSearchStack;
   public readonly apiStack: ApiStack;
+  public readonly frontendStack: FrontendStack;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -56,6 +58,13 @@ export class TradingInsightStack extends cdk.Stack {
       environment: environment,
       dynamodbStack: this.dynamodbStack,
       openSearchStack: this.openSearchStack,
+    });
+    
+    // Add Frontend Stack
+    this.frontendStack = new FrontendStack(this, "FrontendStack", {
+      description: "Frontend nested stack containing S3 website and CloudFront distribution",
+      environment: environment,
+      apiEndpoint: this.apiStack.apiGateway.api.url,
     });
   }
 }

@@ -8,6 +8,7 @@ export interface ApiGatewayConfig {
 
 export interface EnvironmentConfig {
   apiGateway: ApiGatewayConfig;
+  frontend: string;
 }
 
 export function getConfig(scope: cdk.Stack): EnvironmentConfig {

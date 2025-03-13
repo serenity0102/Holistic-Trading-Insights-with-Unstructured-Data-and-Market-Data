@@ -7,6 +7,7 @@ import { PythonLambdaLayer } from "../common/lambda-layer.construct";
 import { NestedStack, NestedStackProps } from "aws-cdk-lib";
 import { DynamoDBStack } from "./dynamodb.stack";
 import { SearchApiConstruct } from "../api/search/search.construct";
+import { ReportsApiConstruct } from "../api/reports/reports.construct";
 import { OpenSearchStack } from "./opensearch.stack";
 
 export interface ApiStackProps extends NestedStackProps {
@@ -47,5 +48,12 @@ export class ApiStack extends NestedStack {
         openSearchStack: props.openSearchStack,
       });
     }
+    
+    // Add Reports API
+    new ReportsApiConstruct(this, "ReportsApi", {
+      api: this.apiGateway,
+      layer: this.lambdaLayer,
+      reportTable: props.dynamodbStack.reportTable.table,
+    });
   }
 }

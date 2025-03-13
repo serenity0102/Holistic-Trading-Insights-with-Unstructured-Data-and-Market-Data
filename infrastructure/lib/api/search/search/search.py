@@ -2,7 +2,7 @@ import json
 import boto3
 import os
 from aws_lambda_powertools import Logger, Tracer
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response, CORSConfig
 from aws_lambda_powertools.event_handler.exceptions import BadRequestError, InternalServerError
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
@@ -11,7 +11,9 @@ from datetime import datetime
 
 logger = Logger()
 tracer = Tracer()
-app = APIGatewayRestResolver()
+logger = Logger()
+cors_config = CORSConfig(allow_origin="*", allow_headers=["x-test"], max_age=300)
+app = APIGatewayRestResolver(cors=cors_config)
 
 # Environment variables
 REGION = os.environ.get("REGION", "us-east-1")
@@ -263,4 +265,7 @@ def search():
 @logger.inject_lambda_context
 @tracer.capture_lambda_handler
 def handler(event: dict, context: LambdaContext) -> dict:
-    return app.resolve(event, context)
+    # Get the response from the app resolver
+    response = app.resolve(event, context)
+        
+    return response
