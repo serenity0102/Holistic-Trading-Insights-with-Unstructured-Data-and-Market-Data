@@ -27,10 +27,11 @@ var/
 ._*
 
 # Large files
-*.zip
 *.gz
 *.tar
 *.rar
+# Allow specific zip files
+!clickhouse-yfinance-lambda_layer.zip
 
 # Virtual Environment
 venv/
